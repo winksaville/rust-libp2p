@@ -85,7 +85,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             let event = swarm.next().await.expect("Infinite Stream.");
             match event {
                 SwarmEvent::Behaviour(Event::Relay(event)) => {
-                    println!("Behaviour event: {:?}", event)
+                    println!("Behaviour Event::Relay event: {:?}", event);
+                }
+                SwarmEvent::Behaviour(Event::Ping(event)) => {
+                    println!("Behaviour Event::Ping event: {:?}", event);
+                }
+                SwarmEvent::Behaviour(Event::Identify(event)) => {
+                    println!("Behaviour Event::Identify event: {:?}", event);
                 }
                 SwarmEvent::NewListenAddr { address, .. } => {
                     println!("NewListenAddr: {:?}", address);
