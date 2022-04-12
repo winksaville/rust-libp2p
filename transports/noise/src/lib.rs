@@ -54,6 +54,8 @@
 //!
 //! [noise]: http://noiseprotocol.org/
 
+#![feature(backtrace)]
+
 mod error;
 mod io;
 mod protocol;

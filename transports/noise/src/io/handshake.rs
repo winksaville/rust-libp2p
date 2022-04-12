@@ -332,7 +332,11 @@ where
     T: AsyncRead + Unpin,
 {
     match state.io.next().await {
-        None => Err(io::Error::new(io::ErrorKind::UnexpectedEof, "eof").into()),
+        None => {
+            println!("wink: async recv error UnexpectedEof");
+            println!("wink backtrace: {}", std::backtrace::Backtrace::force_capture());
+            Err(io::Error::new(io::ErrorKind::UnexpectedEof, "eof").into())
+        },
         Some(Err(e)) => Err(e.into()),
         Some(Ok(m)) => Ok(m),
     }
