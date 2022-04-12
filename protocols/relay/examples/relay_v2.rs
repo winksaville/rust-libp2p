@@ -115,18 +115,21 @@ enum Event {
 
 impl From<PingEvent> for Event {
     fn from(e: PingEvent) -> Self {
+        println!("From<PingEvent>::from: e={:?}", e);
         Event::Ping(e)
     }
 }
 
 impl From<IdentifyEvent> for Event {
     fn from(e: IdentifyEvent) -> Self {
+        println!("From<IdentifyEvent>::from: e={:?}", e);
         Event::Identify(e)
     }
 }
 
 impl From<relay::Event> for Event {
     fn from(e: relay::Event) -> Self {
+        println!("From<relay::Event>::from: e={:?}", e);
         Event::Relay(e)
     }
 }
