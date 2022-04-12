@@ -79,15 +79,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     swarm.listen_on(listen_addr)?;
 
     block_on(async {
+        println!("wink: starting swarm.next() loop");
         loop {
-            match swarm.next().await.expect("Infinite Stream.") {
+            //match swarm.next().await.expect("Infinite Stream.") {
+            let event = swarm.next().await.expect("Infinite Stream.");
+            match event {
                 SwarmEvent::Behaviour(Event::Relay(event)) => {
-                    println!("{:?}", event)
+                    println!("Behaviour event: {:?}", event)
                 }
                 SwarmEvent::NewListenAddr { address, .. } => {
                     println!("Listening on {:?}", address);
                 }
-                _ => {}
+                _ => {
+                    println!("Unknown event: {:?}", event)
+                }
             }
         }
     })
