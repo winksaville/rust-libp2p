@@ -197,9 +197,13 @@ where
 
     /// Provides an API similar to `Stream`, except that it cannot end.
     pub fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<ListenersEvent<TTrans>> {
+        log::trace!("ListenerStream<TTrans>::poll:+");
         // Return pending events from closed listeners.
         if let Some(event) = self.pending_events.pop_front() {
-            return Poll::Ready(event);
+            let result = Poll::Ready(event);
+
+            log::trace!("ListenerStream<TTrans>::poll:- 1 result.is_ready(): {}", result.is_ready());
+            return result;
         }
         // We remove each element from `listeners` one by one and add them back.
         let mut remaining = self.listeners.len();
@@ -220,12 +224,15 @@ where
                 }))) => {
                     let id = *listener_project.id;
                     self.listeners.push_front(listener);
-                    return Poll::Ready(ListenersEvent::Incoming {
+                    let result = Poll::Ready(ListenersEvent::Incoming {
                         listener_id: id,
                         upgrade,
                         local_addr,
                         send_back_addr: remote_addr,
                     });
+
+                    log::trace!("ListenerStream<TTrans>::poll:- 2 result.is_ready(): {}", result.is_ready());
+                    return result;
                 }
                 Poll::Ready(Some(Ok(ListenerEvent::NewAddress(a)))) => {
                     if listener_project.addresses.contains(&a) {
@@ -235,49 +242,68 @@ where
                     }
                     let id = *listener_project.id;
                     self.listeners.push_front(listener);
-                    return Poll::Ready(ListenersEvent::NewAddress {
+                    let result = Poll::Ready(ListenersEvent::NewAddress {
                         listener_id: id,
                         listen_addr: a,
                     });
+
+                    log::trace!("ListenerStream<TTrans>::poll:- 3 result.is_ready(): {}", result.is_ready());
+                    return result;
                 }
                 Poll::Ready(Some(Ok(ListenerEvent::AddressExpired(a)))) => {
                     listener_project.addresses.retain(|x| x != &a);
                     let id = *listener_project.id;
                     self.listeners.push_front(listener);
-                    return Poll::Ready(ListenersEvent::AddressExpired {
+                    let result = Poll::Ready(ListenersEvent::AddressExpired {
                         listener_id: id,
                         listen_addr: a,
                     });
+
+                    log::trace!("ListenerStream<TTrans>::poll:- 4 result.is_ready(): {}", result.is_ready());
+                    return result;
                 }
                 Poll::Ready(Some(Ok(ListenerEvent::Error(error)))) => {
                     let id = *listener_project.id;
                     self.listeners.push_front(listener);
-                    return Poll::Ready(ListenersEvent::Error {
+                    let result = Poll::Ready(ListenersEvent::Error {
                         listener_id: id,
                         error,
                     });
+
+                    log::trace!("ListenerStream<TTrans>::poll:- 5 result.is_ready(): {}", result.is_ready());
+                    return result;
                 }
                 Poll::Ready(None) => {
                     let addresses = mem::take(listener_project.addresses).into_vec();
-                    return Poll::Ready(ListenersEvent::Closed {
+                    let result = Poll::Ready(ListenersEvent::Closed {
                         listener_id: *listener_project.id,
                         addresses,
                         reason: Ok(()),
                     });
+
+                    log::trace!("ListenerStream<TTrans>::poll:- 6 result.is_ready(): {}", result.is_ready());
+                    return result;
                 }
                 Poll::Ready(Some(Err(err))) => {
                     let addresses = mem::take(listener_project.addresses).into_vec();
-                    return Poll::Ready(ListenersEvent::Closed {
+                    let result = Poll::Ready(ListenersEvent::Closed {
                         listener_id: *listener_project.id,
                         addresses,
                         reason: Err(err),
                     });
+
+                    log::trace!("ListenerStream<TTrans>::poll:- 7 result.is_ready(): {}", result.is_ready());
+                    return result;
                 }
             }
         }
 
+
         // We register the current task to be woken up if a new listener is added.
-        Poll::Pending
+        let result = Poll::Pending;
+
+        log::trace!("ListenerStream<TTrans>::poll:- 0 result.is_ready(): {}", result.is_ready());
+        result
     }
 }
 
