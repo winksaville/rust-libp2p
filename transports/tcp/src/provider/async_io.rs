@@ -89,8 +89,9 @@ impl Provider for Tcp {
     }
 
     fn poll_interfaces(w: &mut Self::IfWatcher, cx: &mut Context<'_>) -> Poll<io::Result<IfEvent>> {
-        log::trace!("poll_interfaces");
-        w.poll_unpin(cx).map_ok(|e| match e {
+        log::trace!("poll_interfaces:+");
+
+        let result = w.poll_unpin(cx).map_ok(|e| match e {
             if_watch::IfEvent::Up(a) => {
                 log::trace!("poll_interfaces call IfEvent::Up {}", a);
                 IfEvent::Up(a)
@@ -99,6 +100,9 @@ impl Provider for Tcp {
                 log::trace!("poll_interfaces call IfEvent::Down {}", a);
                 IfEvent::Down(a)
             }
-        })
+        });
+
+        log::trace!("poll_interfaces:-");
+        result
     }
 }
