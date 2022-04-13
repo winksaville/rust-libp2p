@@ -121,8 +121,10 @@ where
     type Item = Result<ListenerEvent<MapFuture<X, F>, E>, E>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        log::trace!("MapStream::Stream::poll_next:+");
+
         let this = self.project();
-        match TryStream::try_poll_next(this.stream, cx) {
+        let result = match TryStream::try_poll_next(this.stream, cx) {
             Poll::Ready(Some(Ok(event))) => {
                 let event = match event {
                     ListenerEvent::Upgrade {
@@ -152,7 +154,10 @@ where
             Poll::Ready(Some(Err(err))) => Poll::Ready(Some(Err(err))),
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
-        }
+        };
+
+        log::trace!("MapStream::Stream::poll_next:+ result.is_ready(): {}", result.is_ready());
+        result
     }
 }
 
