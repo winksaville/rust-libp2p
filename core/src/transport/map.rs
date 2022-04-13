@@ -156,7 +156,7 @@ where
             Poll::Pending => Poll::Pending,
         };
 
-        log::trace!("MapStream::Stream::poll_next:+ result.is_ready(): {}", result.is_ready());
+        log::trace!("MapStream::Stream::poll_next:- result.is_ready(): {}", result.is_ready());
         result
     }
 }
