@@ -19,6 +19,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+#![feature(backtrace)]
+
 use clap::Parser;
 use futures::executor::block_on;
 use futures::stream::StreamExt;
@@ -37,6 +39,8 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
+
+    println!("main backtrace: {}", std::backtrace::Backtrace::force_capture());
 
     let opt = Opt::parse();
     println!("opt: {:?}", opt);
@@ -97,7 +101,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                     println!("NewListenAddr: {:?}", address);
                 }
                 _ => {
-                    println!("Unknown event: {:?}", event)
+                    println!("Unknown event: {:?}", event);
+                    println!("Unknown event backtrace: {}", std::backtrace::Backtrace::force_capture());
                 }
             }
         }
