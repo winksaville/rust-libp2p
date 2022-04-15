@@ -36,7 +36,9 @@ use std::error::Error;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
+    //env_logger::init();
+    let env = env_logger::Env::default();
+    env_logger::Builder::from_env(env).format_timestamp_micros().init();
 
     let opt = Opt::parse();
     println!("opt: {:?}", opt);
