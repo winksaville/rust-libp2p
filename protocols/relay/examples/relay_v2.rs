@@ -38,17 +38,18 @@ use std::error::Error;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
+    let env = env_logger::Env::default();
+    env_logger::Builder::from_env(env).format_timestamp_micros().init();
 
-    println!("rv2: main backtrace: {}", std::backtrace::Backtrace::force_capture());
+    log::info!("rv2: main backtrace: {}", std::backtrace::Backtrace::force_capture());
 
     let opt = Opt::parse();
-    println!("rv2: opt: {:?}", opt);
+    log::info!("rv2: opt: {:?}", opt);
 
     // Create a static known PeerId based on given secret
     let local_key: identity::Keypair = generate_ed25519(opt.secret_key_seed);
     let local_peer_id = PeerId::from(local_key.public());
-    println!("rv2: Local peer id: {:?}", local_peer_id);
+    log::info!("rv2: Local peer id: {:?}", local_peer_id);
 
     let tcp_transport = TcpConfig::new();
 
@@ -83,26 +84,26 @@ fn main() -> Result<(), Box<dyn Error>> {
     swarm.listen_on(listen_addr)?;
 
     block_on(async {
-        println!("rv2: starting swarm.next() loop");
+        log::info!("rv2: starting swarm.next() loop");
         loop {
             //match swarm.next().await.expect("Infinite Stream.") {
             let event = swarm.next().await.expect("Infinite Stream.");
             match event {
                 SwarmEvent::Behaviour(Event::Relay(event)) => {
-                    println!("rv2: Behaviour Event::Relay event: {:?}", event);
+                    log::info!("rv2: Behaviour Event::Relay event: {:?}", event);
                 }
                 SwarmEvent::Behaviour(Event::Ping(event)) => {
-                    println!("rv2: Behaviour Event::Ping event: {:?}", event);
+                    log::info!("rv2: Behaviour Event::Ping event: {:?}", event);
                 }
                 SwarmEvent::Behaviour(Event::Identify(event)) => {
-                    println!("rv2: Behaviour Event::Identify event: {:?}", event);
+                    log::info!("rv2: Behaviour Event::Identify event: {:?}", event);
                 }
                 SwarmEvent::NewListenAddr { address, .. } => {
-                    println!("rv2: NewListenAddr: {:?}", address);
+                    log::info!("rv2: NewListenAddr: {:?}", address);
                 }
                 _ => {
-                    println!("rv2: Unknown event: {:?}", event);
-                    //println!("rv2: Unknown event backtrace: {}", std::backtrace::Backtrace::force_capture());
+                    log::info!("rv2: Unknown event: {:?}", event);
+                    log::debug!("rv2: Unknown event backtrace: {}", std::backtrace::Backtrace::force_capture());
                 }
             }
         }
@@ -126,21 +127,21 @@ enum Event {
 
 impl From<PingEvent> for Event {
     fn from(e: PingEvent) -> Self {
-        println!("rv2: From<PingEvent>::from: e={:?}", e);
+        log::info!("rv2: From<PingEvent>::from: e={:?}", e);
         Event::Ping(e)
     }
 }
 
 impl From<IdentifyEvent> for Event {
     fn from(e: IdentifyEvent) -> Self {
-        println!("rv2: From<IdentifyEvent>::from: e={:?}", e);
+        log::info!("rv2: From<IdentifyEvent>::from: e={:?}", e);
         Event::Identify(e)
     }
 }
 
 impl From<relay::Event> for Event {
     fn from(e: relay::Event) -> Self {
-        println!("rv2: From<relay::Event>::from: e={:?}", e);
+        log::info!("rv2: From<relay::Event>::from: e={:?}", e);
         Event::Relay(e)
     }
 }
