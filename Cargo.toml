@@ -174,4 +174,4 @@ required-features = ["gossipsub"]
 
 [patch.crates-io]
 netlink-proto = { git = "https://github.com/winksaville/netlink", branch = "Add-debug-full-no-backtrace" }
-polling = { git = "https://github.com/winksaville/polling", branch = "Add-debug" }
+polling = { git = "https://github.com/winksaville/polling", branch = "Add-debug-wait-backtrace" }
