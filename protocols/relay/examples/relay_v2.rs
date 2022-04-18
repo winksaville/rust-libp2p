@@ -20,6 +20,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 #![feature(backtrace)]
+#![feature(thread_id_value)]
 
 use clap::Parser;
 use futures::executor::block_on;
@@ -41,7 +42,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let env = env_logger::Env::default();
     env_logger::Builder::from_env(env).format_timestamp_micros().init();
 
-    log::info!("tid={:?} rv2: main backtrace:\n{}", std::thread::current().id(), std::backtrace::Backtrace::force_capture());
+    log::info!("rv2:+ tid={} main", std::thread::current().id().as_u64());
+    log::info!("rv2: main backtrace:\n{}", std::backtrace::Backtrace::force_capture());
 
     let opt = Opt::parse();
     log::info!("rv2: opt: {:?}", opt);
@@ -102,8 +104,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                     log::info!("rv2: NewListenAddr: {:?}", address);
                 }
                 _ => {
-                    log::info!("rv2: Unknown event: {:?}", event);
-                    log::debug!("tid={:?} rv2: Unknown event backtrace:\n{}", std::thread::current().id(), std::backtrace::Backtrace::force_capture());
+                    log::info!("rv2: tid={} Unknown event: {:?}", std::thread::current().id().as_u64(), event);
+                    log::debug!("rv2: Unknown event backtrace:\n{}", std::backtrace::Backtrace::force_capture());
                 }
             }
         }
