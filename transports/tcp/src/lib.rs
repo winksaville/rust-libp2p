@@ -26,6 +26,8 @@
 //! the enabled features, which implement the `Transport` trait for use as a
 //! transport with `libp2p-core` or `libp2p-swarm`.
 
+#![feature(thread_id_value)]
+
 mod provider;
 
 #[cfg(feature = "async-io")]

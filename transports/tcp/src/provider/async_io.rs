@@ -73,9 +73,17 @@ impl Provider for Tcp {
         l: &mut Self::Listener,
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<Incoming<Self::Stream>>> {
-        log::debug!("Tcp::Provider::poll_accept:+ incomming");
+        log::debug!("Tcp::Provider::poll_accept:+ tid={} incomming", std::thread::current().id().as_u64());
         let (stream, remote_addr) = loop {
-            match l.poll_readable(cx) {
+            // This is the "higher level receiving" side of accepting a connection.
+            // This doesn't happen when libp2p-lookup fails. I'm trying to get closer
+            // to that point where it fails. Basically trying to determine if the lower
+            // level code (epoll?) is never deliverying or this higher level code can't
+            // accept it.
+            log::debug!("Tcp::Provider::poll_accept: call poll_readable cx={:?}", cx);
+            let prr = l.poll_readable(cx);
+            log::debug!("Tcp::Provider::poll_accept: retf poll_readable prr={:?}", prr);
+            match prr {
                 Poll::Pending => {
                     let result = Poll::Pending;
                     log::debug!("Tcp::Provider::poll_accept:- result.is_ready(): {}", result.is_ready());
@@ -87,21 +95,29 @@ impl Provider for Tcp {
                     log::debug!("Tcp::Provider::poll_accept:- result.is_ready(): {}, err: {}", result.is_ready(), err_string);
                     return result;
                 }
-                Poll::Ready(Ok(())) => match l.accept().now_or_never() {
-                    Some(Err(e)) => {
-                        let err_string: String = e.to_string();
-                        let result = Poll::Ready(Err(e));
-                        log::debug!("Tcp::Provider::poll_accept:- result.is_ready(): {}, err: {}", result.is_ready(), err_string);
-                        return result;
-                    }
-                    Some(Ok(res)) => {
-                        log::debug!("Tcp::Provider::poll_accept: accepted res: {:?}", res);
-                        break res
-                    }
-                    None => {
-                        log::debug!("Tcp::Provider::poll_accept: None, continue looping");
-                        // Since it doesn't do any harm, account for false positives of
-                        // `poll_readable` just in case, i.e. try again.
+                Poll::Ready(Ok(())) => {
+                    log::debug!("Tcp::Provider::poll_accept: call accept()");
+                    let accept_result= l.accept();
+                    log::debug!("Tcp::Provider::poll_accept: retf accept()");
+                    log::debug!("Tcp::Provider::poll_accept: call now_or_never()");
+                    let now_or_never_result = accept_result.now_or_never();
+                    log::debug!("Tcp::Provider::poll_accept: retf now_or_never() now_or_never_result={:?}", now_or_never_result);
+                    match now_or_never_result {
+                        Some(Err(e)) => {
+                            let err_string: String = e.to_string();
+                            let result = Poll::Ready(Err(e));
+                            log::debug!("Tcp::Provider::poll_accept:- result.is_ready(): {}, err: {}", result.is_ready(), err_string);
+                            return result;
+                        }
+                        Some(Ok(res)) => {
+                            log::debug!("Tcp::Provider::poll_accept: accepted res: {:?}", res);
+                            break res
+                        }
+                        None => {
+                            log::debug!("Tcp::Provider::poll_accept: None, continue looping");
+                            // Since it doesn't do any harm, account for false positives of
+                            // `poll_readable` just in case, i.e. try again.
+                        }
                     }
                 },
             }
