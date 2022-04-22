@@ -173,5 +173,5 @@ name = "ipfs-private"
 required-features = ["gossipsub"]
 
 [patch.crates-io]
-netlink-proto = { git = "https://github.com/winksaville/netlink", branch = "Add-debug-full-backtrace" }
-polling = { git = "https://github.com/winksaville/polling", branch = "Add-debug-wait-backtrace" }
+netlink-proto = { git = "https://github.com/winksaville/netlink", tag = "Add-debug-v1" }
+polling = { git = "https://github.com/winksaville/polling", tag = "Add-debug-v1" }
