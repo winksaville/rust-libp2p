@@ -565,25 +565,28 @@ where
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         let me = Pin::into_inner(self);
 
+        log::trace!("poll_next:+ tid={}", std::thread::current().id().as_u64());
         loop {
-            log::trace!("poll_next: TOL");
+            log::trace!("poll_next: TOL tid={}", std::thread::current().id().as_u64());
             match &mut me.in_addr {
                 InAddr::Any { if_watch, addrs } => match if_watch {
                     // If we listen on all interfaces, wait for `if-watch` to be ready.
                     IfWatch::Pending(f) => match ready!(Pin::new(f).poll(cx)) {
                         Ok(w) => {
                             *if_watch = IfWatch::Ready(w);
-                            log::trace!("poll_next: Continuing *if_watch=Ready()");
+                            log::trace!("poll_next: Continuing *if_watch is Ready()");
                             continue;
                         }
                         Err(err) => {
-                            log::debug! {
-                                "poll_next: Failed to begin observing interfaces: {:?}. Scheduling retry.",
-                                err
-                            };
                             *if_watch = IfWatch::Pending(T::if_watcher());
                             me.pause = Some(Delay::new(me.sleep_on_error));
-                            return Poll::Ready(Some(Ok(ListenerEvent::Error(err))));
+                            log::debug!(
+                                "poll_next: Failed to being observing interfaces: {:?}. Scheduling retry with delay={:?}", err, me.pause
+                            );
+
+                            let res = Poll::Ready(Some(Ok(ListenerEvent::Error(err))));
+                            log::debug!("poll_next:- tid={} res={:?}", std::thread::current().id().as_u64(), res);
+                            return res;
                         }
                     },
                     // Consume all events for up/down interface changes.
@@ -597,9 +600,12 @@ where
                                         let ma = ip_to_multiaddr(ip, me.listen_addr.port());
                                         log::debug!("poll_next: New listen address: {}", ma);
                                         me.port_reuse.register(ip, me.listen_addr.port());
-                                        return Poll::Ready(Some(Ok(ListenerEvent::NewAddress(
+
+                                        let res = Poll::Ready(Some(Ok(ListenerEvent::NewAddress(
                                             ma,
                                         ))));
+                                        log::debug!("poll_next:- tid={} res={:?}", std::thread::current().id().as_u64(), res);
+                                        return res;
                                     }
                                 }
                                 Ok(IfEvent::Down(inet)) => {
@@ -609,18 +615,23 @@ where
                                         let ma = ip_to_multiaddr(ip, me.listen_addr.port());
                                         log::debug!("poll_next: Expired listen address: {}", ma);
                                         me.port_reuse.unregister(ip, me.listen_addr.port());
-                                        return Poll::Ready(Some(Ok(
+
+                                        let res = Poll::Ready(Some(Ok(
                                             ListenerEvent::AddressExpired(ma),
                                         )));
+                                        log::debug!("poll_next:- tid={} res={:?}", std::thread::current().id().as_u64(), res);
+                                        return res;
                                     }
                                 }
                                 Err(err) => {
-                                    log::debug! {
-                                        "poll_next: Failure polling interfaces: {:?}. Scheduling retry.",
-                                        err
-                                    };
                                     me.pause = Some(Delay::new(me.sleep_on_error));
-                                    return Poll::Ready(Some(Ok(ListenerEvent::Error(err))));
+                                    log::debug!(
+                                        "poll_next: Failure polling interfaces: {:?}. Scheduling retry with delay={:?}", err, me.pause
+                                    );
+
+                                    let res = Poll::Ready(Some(Ok(ListenerEvent::Error(err))));
+                                    log::trace!("poll_next:- tid={} res={:?}", std::thread::current().id().as_u64(), res);
+                                    return res;
                                 }
                             }
                         }
@@ -632,7 +643,10 @@ where
                     if let Some(multiaddr) = out.take() {
                         log::trace!("poll_next: InAddr::One reregister {}:{}", *addr, me.listen_addr.port());
                         me.port_reuse.register(*addr, me.listen_addr.port());
-                        return Poll::Ready(Some(Ok(ListenerEvent::NewAddress(multiaddr))));
+
+                        let res = Poll::Ready(Some(Ok(ListenerEvent::NewAddress(multiaddr))));
+                        log::trace!("poll_next:- tid={} res={:?}", std::thread::current().id().as_u64(), res);
+                        return res;
                     } else {
                         log::trace!("poll_next: InAddr::One: nothing todo ATM");
                     }
@@ -644,9 +658,12 @@ where
                 match Pin::new(&mut pause).poll(cx) {
                     Poll::Ready(_) => {}
                     Poll::Pending => {
-                        log::trace!("poll_next: Pausing {:?} so return Poll::Pending", pause);
+                        log::trace!("poll_next: Pausing pause={:?}", pause);
                         me.pause = Some(pause);
-                        return Poll::Pending;
+
+                        let res = Poll::Pending;
+                        log::trace!("poll_next:- tid={} res={:?}", std::thread::current().id().as_u64(), res);
+                        return res;
                     }
                 }
             }
@@ -654,8 +671,9 @@ where
             // Take the pending connection from the backlog.
             let incoming = match T::poll_accept(&mut me.listener, cx) {
                 Poll::Pending => {
-                    log::trace!("poll_next: No incomming");
-                    return Poll::Pending;
+                    let res = Poll::Pending;
+                    log::trace!("poll_next:- No incomming tid={} res={:?}", std::thread::current().id().as_u64(), res);
+                    return res;
                 }
                 Poll::Ready(Ok(incoming)) => {
                     log::trace!("poll_next: Incomming");
@@ -665,21 +683,25 @@ where
                     // These errors are non-fatal for the listener stream.
                     log::error!("poll_next: error accepting incoming connection: {}", e);
                     me.pause = Some(Delay::new(me.sleep_on_error));
-                    return Poll::Ready(Some(Ok(ListenerEvent::Error(e))));
+
+                    let res = Poll::Ready(Some(Ok(ListenerEvent::Error(e))));
+                    log::debug!("poll_next:- tid={} res={:?}", std::thread::current().id().as_u64(), res);
+                    return res;
                 }
             };
 
             let local_addr = ip_to_multiaddr(incoming.local_addr.ip(), incoming.local_addr.port());
             let remote_addr =
                 ip_to_multiaddr(incoming.remote_addr.ip(), incoming.remote_addr.port());
-
             log::debug!("poll_next: Incoming connection from {} at {}", remote_addr, local_addr);
 
-            return Poll::Ready(Some(Ok(ListenerEvent::Upgrade {
+            let res = Poll::Ready(Some(Ok(ListenerEvent::Upgrade {
                 upgrade: future::ok(incoming.stream),
                 local_addr,
                 remote_addr,
             })));
+            log::debug!("poll_next:- tid={} res={:?}", std::thread::current().id().as_u64(), res);
+            return res;
         }
     }
 }
