@@ -42,9 +42,9 @@ impl Provider for Tcp {
     }
 
     fn new_listener(l: net::TcpListener) -> io::Result<Self::Listener> {
-        log::debug!("Tcp::Provider::inew_listener:+");
+        log::debug!("Tcp::Provider::new_listener:+");
         let result = Async::new(l);
-        log::debug!("Tcp::Provider::inew_listener:-");
+        log::debug!("Tcp::Provider::new_listener:-");
         result
     }
 
