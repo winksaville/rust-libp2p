@@ -88,7 +88,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     block_on(async {
         log::info!("rv2: starting swarm.next() loop");
         loop {
-            //match swarm.next().await.expect("Infinite Stream.") {
             let event = swarm.next().await.expect("Infinite Stream.");
             match event {
                 SwarmEvent::Behaviour(Event::Relay(event)) => {
