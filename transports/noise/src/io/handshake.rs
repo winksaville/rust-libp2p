@@ -334,7 +334,7 @@ where
     match state.io.next().await {
         None => {
             log::trace!("wink: async recv error UnexpectedEof");
-            log::trace!("wink backtrace: {}", std::backtrace::Backtrace::force_capture());
+            //log::trace!("wink backtrace: {}", std::backtrace::Backtrace::force_capture());
             Err(io::Error::new(io::ErrorKind::UnexpectedEof, "eof").into())
         },
         Some(Err(e)) => Err(e.into()),

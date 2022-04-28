@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     env_logger::Builder::from_env(env).format_timestamp_micros().init();
 
     log::info!("rv2:+ tid={} main", std::thread::current().id().as_u64());
-    log::info!("rv2: main backtrace:\n{}", std::backtrace::Backtrace::force_capture());
+    //log::info!("rv2: main backtrace:\n{}", std::backtrace::Backtrace::force_capture());
 
     let opt = Opt::parse();
     log::info!("rv2: opt: {:?}", opt);
@@ -104,7 +104,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 _ => {
                     log::info!("rv2: tid={} Unknown event: {:?}", std::thread::current().id().as_u64(), event);
-                    log::debug!("rv2: Unknown event backtrace:\n{}", std::backtrace::Backtrace::force_capture());
+                    //log::debug!("rv2: Unknown event backtrace:\n{}", std::backtrace::Backtrace::force_capture());
                 }
             }
         }
