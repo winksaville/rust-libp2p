@@ -26,7 +26,7 @@
 //! the enabled features, which implement the `Transport` trait for use as a
 //! transport with `libp2p-core` or `libp2p-swarm`.
 
-#![feature(thread_id_value)]
+#![feature(backtrace, thread_id_value)]
 
 mod provider;
 
@@ -693,7 +693,8 @@ where
             let local_addr = ip_to_multiaddr(incoming.local_addr.ip(), incoming.local_addr.port());
             let remote_addr =
                 ip_to_multiaddr(incoming.remote_addr.ip(), incoming.remote_addr.port());
-            log::debug!("poll_next: Incoming connection from {} at {}", remote_addr, local_addr);
+            //log::debug!("poll_next: Incoming connection from {} at {}", remote_addr, local_addr);
+            log::debug!("poll_next: Incoming connection from {} at {} tid={} backtrace\n{}", remote_addr, local_addr, std::thread::current().id().as_u64(), std::backtrace::Backtrace::force_capture());
 
             let res = Poll::Ready(Some(Ok(ListenerEvent::Upgrade {
                 upgrade: future::ok(incoming.stream),
