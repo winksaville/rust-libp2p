@@ -673,13 +673,13 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<SwarmEvent<TBehaviour::OutEvent, THandlerErr<TBehaviour>>> {
-        log::trace!("Swarm<TBehavior>::poll_next_event:+ tid={}", std::thread::current().id().as_u64());
+        log::trace!("Listener:+ tid={}", std::thread::current().id().as_u64());
         // We use a `this` variable because the compiler can't mutably borrow multiple times
         // across a `Deref`.
         let this = &mut *self;
 
         loop {
-            log::trace!("Swarm<TBehavior>::poll_next_event: TOL tid={}", std::thread::current().id().as_u64());
+            log::trace!("Listener: TOL tid={}", std::thread::current().id().as_u64());
 
             let mut listeners_not_ready = false;
             let mut connections_not_ready = false;
@@ -687,6 +687,7 @@ where
             // Poll the listener(s) for new connections.
             match ListenersStream::poll(Pin::new(&mut this.listeners), cx) {
                 Poll::Pending => {
+                    log::trace!("Listener Poll::Pending listeners_not_ready=true");
                     listeners_not_ready = true;
                 }
                 Poll::Ready(ListenersEvent::Incoming {
@@ -695,7 +696,10 @@ where
                     local_addr,
                     send_back_addr,
                 }) => {
+                    log::trace!("Listener: Poll::Ready ListenersEvent::Incoming+");
+
                     let handler = this.behaviour.new_handler();
+                    log::trace!("Listener: Poll::Ready ListenersEvent::Incoming after new_handler()");
                     match this.pool.add_incoming(
                         upgrade,
                         handler,
@@ -709,7 +713,7 @@ where
                                 local_addr,
                                 send_back_addr,
                             });
-                            log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} Ok(connection_id: {:?}), res.is_ready: {}", std::thread::current().id().as_u64(), _connection_id, res.is_ready());
+                            log::trace!("Listener:- tid={} Ok(connection_id: {:?}), res.is_ready: {}", std::thread::current().id().as_u64(), _connection_id, res.is_ready());
                             return res;
                         }
                         Err((connection_limit, handler)) => {
@@ -718,15 +722,17 @@ where
                                 &send_back_addr,
                                 handler,
                             );
-                            log::warn!("Swarm<TBehavior>::poll_next_event: Incoming connection rejected: {:?}", connection_limit);
+                            log::warn!("Listener: Incoming connection rejected: {:?}", connection_limit);
                         }
                     };
+
+                    log::trace!("Listener: Poll::Ready ListenersEvent::Incoming-");
                 }
                 Poll::Ready(ListenersEvent::NewAddress {
                     listener_id,
                     listen_addr,
                 }) => {
-                    log::debug!("Swarm<TBehavior>::poll_next_event: Listener {:?}; New address: {:?}", listener_id, listen_addr);
+                    log::debug!("Listener: Listener {:?}; New address: {:?}", listener_id, listen_addr);
                     if !this.listened_addrs.contains(&listen_addr) {
                         this.listened_addrs.push(listen_addr.clone())
                     }
@@ -736,7 +742,7 @@ where
                         listener_id,
                         address: listen_addr.clone(),
                     });
-                    log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} Poll::Ready(ListenersEvent::NewAddress: listener_id: {:?}, listen_addr: {}), res.is_ready: {}", std::thread::current().id().as_u64(), listener_id, listen_addr, res.is_ready());
+                    log::trace!("Listener:- tid={} Poll::Ready(ListenersEvent::NewAddress: listener_id: {:?}, listen_addr: {}), res.is_ready: {}", std::thread::current().id().as_u64(), listener_id, listen_addr, res.is_ready());
                     return res;
                 }
                 Poll::Ready(ListenersEvent::AddressExpired {
@@ -744,7 +750,7 @@ where
                     listen_addr,
                 }) => {
                     log::debug!(
-                        "Swarm<TBehavior>::poll_next_event: Listener {:?}; Expired address {:?}.",
+                        "Listener: Listener {:?}; Expired address {:?}.",
                         listener_id,
                         listen_addr
                     );
@@ -755,7 +761,7 @@ where
                         listener_id,
                         address: listen_addr.clone(),
                     });
-                    log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} Poll::Ready(ListenersEvent::AddressExpired: listener_id: {:?}, listen_addr: {}), res.is_ready: {}", std::thread::current().id().as_u64(), listener_id, listen_addr, res.is_ready());
+                    log::trace!("Listener:- tid={} Poll::Ready(ListenersEvent::AddressExpired: listener_id: {:?}, listen_addr: {}), res.is_ready: {}", std::thread::current().id().as_u64(), listener_id, listen_addr, res.is_ready());
                     return res;
                 }
                 Poll::Ready(ListenersEvent::Closed {
@@ -763,7 +769,7 @@ where
                     addresses,
                     reason,
                 }) => {
-                    log::debug!("Swarm<TBehavior>::poll_next_event: Listener {:?}; Closed by {:?}.", listener_id, reason);
+                    log::debug!("Listener: Listener {:?}; Closed by {:?}.", listener_id, reason);
                     for addr in addresses.iter() {
                         this.behaviour.inject_expired_listen_addr(listener_id, addr);
                     }
@@ -783,23 +789,25 @@ where
                         addresses: addresses.clone(),
                         reason,
                     });
-                    log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} Poll::Ready(ListenersEvent::Closed: listener_id: {:?}, addresses: {:?}, reason: {}), res.is_ready: {}", std::thread::current().id().as_u64(), listener_id, addresses, reason_string, res.is_ready());
+                    log::trace!("Listener:- tid={} Poll::Ready(ListenersEvent::Closed: listener_id: {:?}, addresses: {:?}, reason: {}), res.is_ready: {}", std::thread::current().id().as_u64(), listener_id, addresses, reason_string, res.is_ready());
                     return res;
                 }
                 Poll::Ready(ListenersEvent::Error { listener_id, error }) => {
                     let error_string = format!("Err({:?})", error);
                     this.behaviour.inject_listener_error(listener_id, &error);
                     let res= Poll::Ready(SwarmEvent::ListenerError { listener_id, error });
-                    log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} Poll::Ready(ListenersEvent::Error: listener_id: {:?}, error: {}), res.is_ready: {}", std::thread::current().id().as_u64(), listener_id, error_string, res.is_ready());
+                    log::trace!("Listener:- tid={} Poll::Ready(ListenersEvent::Error: listener_id: {:?}, error: {}), res.is_ready: {}", std::thread::current().id().as_u64(), listener_id, error_string, res.is_ready());
                     return res;
                 }
             }
+
+            log::trace!("Listener: poll known peers");
 
             // Poll the known peers.
             match this.pool.poll(cx) {
                 Poll::Pending => {
                     connections_not_ready = true;
-                    log::trace!("Swarm<TBehavior>::poll_next_event: tid={} Poll::Pending: connections_not_ready: {}", std::thread::current().id().as_u64(), connections_not_ready);
+                    log::trace!("Listener: tid={} Poll::Pending: connections_not_ready: {}", std::thread::current().id().as_u64(), connections_not_ready);
                 }
                 Poll::Ready(PoolEvent::ConnectionEstablished {
                     connection,
@@ -812,7 +820,7 @@ where
                         // Mark the connection for the banned peer as banned, thus withholding any
                         // future events from the connection to the behaviour.
                         this.banned_peer_connections.insert(connection.id());
-                        log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} Poll::Ready(PoolEvent::ConnectionEstablished connection: {:?} other_established_connection_ids: {:?} concurrent_dial_errors: {:?}), res.is_ready: ???", std::thread::current().id().as_u64(), connection, other_established_connection_ids, concurrent_dial_errors);
+                        log::trace!("Listener:- tid={} Poll::Ready(PoolEvent::ConnectionEstablished connection: {:?} other_established_connection_ids: {:?} concurrent_dial_errors: {:?}), res.is_ready: ???", std::thread::current().id().as_u64(), connection, other_established_connection_ids, concurrent_dial_errors);
                         this.pool.disconnect(peer_id);
                         return Poll::Ready(SwarmEvent::BannedPeer { peer_id, endpoint });
                     } else {
@@ -826,7 +834,7 @@ where
                             .count();
 
                         log::debug!(
-                            "Swarm<TBehavior>::poll_next_event: Connection established: {:?} {:?}; Total (peer): {}. Total non-banned (peer): {}",
+                            "Listener: Connection established: {:?} {:?}; Total (peer): {}. Total non-banned (peer): {}",
                             connection.peer_id(),
                             connection.endpoint(),
                             num_established,
@@ -849,7 +857,7 @@ where
                             endpoint,
                             concurrent_dial_errors,
                         });
-                        log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} Poll::Ready(PoolEvent::ConnectionEstablished connection: {:?}), res.is_ready: {}", std::thread::current().id().as_u64(), connection, res.is_ready());
+                        log::trace!("Listener:- tid={} Poll::Ready(PoolEvent::ConnectionEstablished connection: {:?}), res.is_ready: {}", std::thread::current().id().as_u64(), connection, res.is_ready());
                         return res;
                     }
                 }
@@ -864,16 +872,16 @@ where
                     this.behaviour.inject_dial_failure(peer, handler, &error);
 
                     if let Some(peer) = peer {
-                        log::debug!("Swarm<TBehavior>::poll_next_event: Connection attempt to {:?} failed with {:?}.", peer, error,);
+                        log::debug!("Listener: Connection attempt to {:?} failed with {:?}.", peer, error,);
                     } else {
-                        log::debug!("Swarm<TBehavior>::poll_next_event: Connection attempt to unknown peer failed with {:?}", error);
+                        log::debug!("Listener: Connection attempt to unknown peer failed with {:?}", error);
                     }
 
                     let res= Poll::Ready(SwarmEvent::OutgoingConnectionError {
                         peer_id: peer,
                         error,
                     });
-                    log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} PollReady(PoolEvent::PendingOutboundConnectionError: peer {:?}), res.is_ready: {}", std::thread::current().id().as_u64(), peer, res.is_ready());
+                    log::trace!("Listener:- tid={} PollReady(PoolEvent::PendingOutboundConnectionError: peer {:?}), res.is_ready: {}", std::thread::current().id().as_u64(), peer, res.is_ready());
                     return res;
                 }
                 Poll::Ready(PoolEvent::PendingInboundConnectionError {
@@ -883,7 +891,7 @@ where
                     error,
                     handler,
                 }) => {
-                    log::debug!("Swarm<TBehavior>::poll_next_event: Incoming connection failed: {:?}", error);
+                    log::debug!("Listener: Incoming connection failed: {:?}", error);
                     this.behaviour
                         .inject_listen_failure(&local_addr, &send_back_addr, handler);
                     let la = local_addr.clone();
@@ -893,7 +901,7 @@ where
                         send_back_addr,
                         error,
                     });
-                    log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} Poll::Ready(PoolEvent::PendingInboundConnectionError: local_addr: {:?} send_back_addr: {:?}), res.is_ready: {}", std::thread::current().id().as_u64(), la, sba, res.is_ready());
+                    log::trace!("Listener:- tid={} Poll::Ready(PoolEvent::PendingInboundConnectionError: local_addr: {:?} send_back_addr: {:?}), res.is_ready: {}", std::thread::current().id().as_u64(), la, sba, res.is_ready());
                     return res;
                 }
                 Poll::Ready(PoolEvent::ConnectionClosed {
@@ -906,14 +914,14 @@ where
                 }) => {
                     if let Some(error) = error.as_ref() {
                         log::debug!(
-                            "Swarm<TBehavior>::poll_next_event: Connection closed with error {:?}: {:?}; Total (peer): {}.",
+                            "Listener: Connection closed with error {:?}: {:?}; Total (peer): {}.",
                             error,
                             connected,
                             remaining_established_connection_ids.len()
                         );
                     } else {
                         log::debug!(
-                            "Swarm<TBehavior>::poll_next_event: Connection closed: {:?}; Total (peer): {}.",
+                            "Listener: Connection closed: {:?}; Total (peer): {}.",
                             connected,
                             remaining_established_connection_ids.len()
                         );
@@ -943,16 +951,16 @@ where
                         cause: error,
                         num_established,
                     });
-                    log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} PollRead(PoolEvent::ConnectionClosed: peer_id: {:?} endpoint: {:?}), res.is_ready: {}", std::thread::current().id().as_u64(), peer_id, endpoint, res.is_ready());
+                    log::trace!("Listener:- tid={} PollRead(PoolEvent::ConnectionClosed: peer_id: {:?} endpoint: {:?}), res.is_ready: {}", std::thread::current().id().as_u64(), peer_id, endpoint, res.is_ready());
                     return res;
                 }
                 Poll::Ready(PoolEvent::ConnectionEvent { connection, event }) => {
                     let peer = connection.peer_id();
                     let conn_id = connection.id();
                     if this.banned_peer_connections.contains(&conn_id) {
-                        log::debug!("Swarm<TBehavior>::poll_next_event: Ignoring PoolEvent::ConnectionEvent from banned peer: {} conn_id: {:?}.", peer, conn_id);
+                        log::debug!("Listener: Ignoring PoolEvent::ConnectionEvent from banned peer: {} conn_id: {:?}.", peer, conn_id);
                     } else {
-                        log::debug!("Swarm<TBehavior>::poll_next_event: Inject PoolEvent::ConnectionEvent for peer {} conn_id: {:?}.", peer, conn_id);
+                        log::debug!("Listener: Inject PoolEvent::ConnectionEvent for peer {} conn_id: {:?}.", peer, conn_id);
                         this.behaviour.inject_event(peer, conn_id, event);
                     }
                 }
@@ -964,7 +972,7 @@ where
                     let peer = connection.peer_id();
                     let conn_id = connection.id();
                     if !this.banned_peer_connections.contains(&conn_id) {
-                        log::debug!("Swarm<TBehavior>::poll_next_event: Inject PoolEvent::AddressChange event for peer: {} conn_id: {:?}.", peer, conn_id);
+                        log::debug!("Listener: Inject PoolEvent::AddressChange event for peer: {} conn_id: {:?}.", peer, conn_id);
                         this.behaviour.inject_address_change(
                             &peer,
                             &conn_id,
@@ -972,10 +980,12 @@ where
                             &new_endpoint,
                         );
                     } else {
-                        log::debug!("Swarm<TBehavior>::poll_next_event: Ignoring PoolEvent::AddressChange event from banned peer: {} conn_id: {:?}.", peer, conn_id);
+                        log::debug!("Listener: Ignoring PoolEvent::AddressChange event from banned peer: {} conn_id: {:?}.", peer, conn_id);
                     }
                 }
             };
+
+            log::trace!("Listener: try to deliver pending events from behaviour");
 
             // After the network had a chance to make progress, try to deliver
             // the pending event emitted by the behaviour in the previous iteration
@@ -990,10 +1000,10 @@ where
                                 this.pending_event = Some((peer_id, handler, event));
                                 if listeners_not_ready && connections_not_ready {
                                     let res= Poll::Pending;
-                                    log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} PendingNotifyHandler::One(conn_id: {:?}) listeners_not_ready && connections_no_ready, res.is_ready: {}", std::thread::current().id().as_u64(), conn_id, res.is_ready());
+                                    log::trace!("Listener:- tid={} PendingNotifyHandler::One(conn_id: {:?}) listeners_not_ready && connections_no_ready, res.is_ready: {}", std::thread::current().id().as_u64(), conn_id, res.is_ready());
                                     return res;
                                 } else {
-                                    log::trace!("Swarm<TBehavior>::poll_next_event: PendingNotifyHandler::One(conn_id: {:?}) listeners_not_ready: {} || connections_not_ready: {}, CONTINUE", conn_id, listeners_not_ready, connections_not_ready);
+                                    log::trace!("Listener: PendingNotifyHandler::One(conn_id: {:?}) listeners_not_ready: {} || connections_not_ready: {}, CONTINUE", conn_id, listeners_not_ready, connections_not_ready);
                                     continue;
                                 }
                             }
@@ -1007,10 +1017,10 @@ where
                             this.pending_event = Some((peer_id, handler, event));
                             if listeners_not_ready && connections_not_ready {
                                 let res= Poll::Pending;
-                                log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} PendingNotifyHandler::Any(ids: {:?}) listeners_not_ready && connections_no_ready, res.is_ready: {}", std::thread::current().id().as_u64(), ids, res.is_ready());
+                                log::trace!("Listener:- tid={} PendingNotifyHandler::Any(ids: {:?}) listeners_not_ready && connections_no_ready, res.is_ready: {}", std::thread::current().id().as_u64(), ids, res.is_ready());
                                 return res;
                             } else {
-                                log::trace!("Swarm<TBehavior>::poll_next_event: PendingNotifyHandler::Any(ids: {:?}) listeners_not_ready: {} || connections_not_ready: {}, CONTINUE", ids, listeners_not_ready, connections_not_ready);
+                                log::trace!("Listener: PendingNotifyHandler::Any(ids: {:?}) listeners_not_ready: {} || connections_not_ready: {}, CONTINUE", ids, listeners_not_ready, connections_not_ready);
                                 continue;
                             }
                         }
@@ -1027,23 +1037,25 @@ where
                     listened_addrs: &this.listened_addrs,
                     external_addrs: &this.external_addrs,
                 };
-                log::trace!("Swarm<TBehavior>::poll_next_event: behaviour.poll params: {:?}", parameters);
+                log::trace!("Listener: behaviour.poll params: {:?}", parameters);
                 this.behaviour.poll(cx, &mut parameters)
             };
+
+            log::trace!("Listener: behaviour_poll");
 
             match behaviour_poll {
                 Poll::Pending if listeners_not_ready && connections_not_ready => {
                     let res= Poll::Pending;
-                    log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} behaviour_poll Poll::Pending listeners_not_ready: {} && connections_not_ready: {}, res.is_ready: {}", std::thread::current().id().as_u64(), listeners_not_ready, connections_not_ready, res.is_ready());
+                    log::trace!("Listener:- tid={} behaviour_poll Poll::Pending listeners_not_ready: {} && connections_not_ready: {}, res.is_ready: {}", std::thread::current().id().as_u64(), listeners_not_ready, connections_not_ready, res.is_ready());
                     return res;
                 }
                 Poll::Pending => {
-                    log::trace!("Swarm<TBehavior>::poll_next_event: behaviour_poll Poll::Pending listeners_not_ready: {} || connections_not_ready: {}, ADVANCE", listeners_not_ready, connections_not_ready);
+                    log::trace!("Listener: behaviour_poll Poll::Pending listeners_not_ready: {} || connections_not_ready: {}, ADVANCE", listeners_not_ready, connections_not_ready);
                     ()
                 },
                 Poll::Ready(NetworkBehaviourAction::GenerateEvent(event)) => {
                     let res= Poll::Ready(SwarmEvent::Behaviour(event));
-                    log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} behaviour_poll Poll::Ready(NetworkBehaviourAction::GenerateEvent(event: ??)) res.is_ready: {}", std::thread::current().id().as_u64(), res.is_ready());
+                    log::trace!("Listener:- tid={} behaviour_poll Poll::Ready(NetworkBehaviourAction::GenerateEvent(event: ??)) res.is_ready: {}", std::thread::current().id().as_u64(), res.is_ready());
                     return res;
                 }
                 Poll::Ready(NetworkBehaviourAction::Dial { opts, handler }) => {
@@ -1051,7 +1063,7 @@ where
                     if let Ok(()) = this.dial_with_handler(opts, handler) {
                         if let Some(peer_id) = peer_id {
                             let res= Poll::Ready(SwarmEvent::Dialing(peer_id));
-                            log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} behaviour_poll Poll::Ready(NetworkBehaviourAction::Dial: peer_id: {:?}), res.is_ready: {}", std::thread::current().id().as_u64(), peer_id, res.is_ready());
+                            log::trace!("Listener:- tid={} behaviour_poll Poll::Ready(NetworkBehaviourAction::Dial: peer_id: {:?}), res.is_ready: {}", std::thread::current().id().as_u64(), peer_id, res.is_ready());
                             return res;
                         }
                     }
@@ -1068,10 +1080,10 @@ where
                                 this.pending_event = Some((peer_id, handler, event));
                                 if listeners_not_ready && connections_not_ready {
                                     let res= Poll::Pending;
-                                    log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} behaviour_poll Poll::Ready(NetworkBehaviourAction::NotifyHandler::One peer_id: {}) pending_event: ?? listeners_not_ready: {} && connections_not_ready: {}, res.is_ready: {}", std::thread::current().id().as_u64(), peer_id, listeners_not_ready, connections_not_ready, res.is_ready());
+                                    log::trace!("Listener:- tid={} behaviour_poll Poll::Ready(NetworkBehaviourAction::NotifyHandler::One peer_id: {}) pending_event: ?? listeners_not_ready: {} && connections_not_ready: {}, res.is_ready: {}", std::thread::current().id().as_u64(), peer_id, listeners_not_ready, connections_not_ready, res.is_ready());
                                     return res;
                                 } else {
-                                    log::trace!("Swarm<TBehavior>::poll_next_event: behaviour_poll Poll::Ready(NetworkBehaviourAction::NotifyHandler::One peer_id: {}) pending_event: ?? isteners_not_ready: {} || connections_not_ready: {}, CONTINUE", peer_id, listeners_not_ready, connections_not_ready);
+                                    log::trace!("Listener: behaviour_poll Poll::Ready(NetworkBehaviourAction::NotifyHandler::One peer_id: {}) pending_event: ?? isteners_not_ready: {} || connections_not_ready: {}, CONTINUE", peer_id, listeners_not_ready, connections_not_ready);
                                     continue;
                                 }
                             }
@@ -1089,16 +1101,17 @@ where
                             this.pending_event = Some((peer_id, handler, event));
                             if listeners_not_ready && connections_not_ready {
                                 let res= Poll::Pending;
-                                log::trace!("Swarm<TBehavior>::poll_next_event:- tid={} behaviour_poll Poll::Ready(NetworkBehaviourAction::NotifyHandler::Any ids: {:?}) pending_event: ?? listeners_not_ready: {} && connections_not_ready: {}, res.is_ready: {}", std::thread::current().id().as_u64(), ids, listeners_not_ready, connections_not_ready, res.is_ready());
+                                log::trace!("Listener:- tid={} behaviour_poll Poll::Ready(NetworkBehaviourAction::NotifyHandler::Any ids: {:?}) pending_event: ?? listeners_not_ready: {} && connections_not_ready: {}, res.is_ready: {}", std::thread::current().id().as_u64(), ids, listeners_not_ready, connections_not_ready, res.is_ready());
                                 return res;
                             } else {
-                                log::trace!("Swarm<TBehavior>::poll_next_event: behaviour_poll Poll::Ready(NetworkBehaviourAction::NotifyHandler::Any ids: {:?}) pending_event: ?? isteners_not_ready: {} || connections_not_ready: {}, CONTINUE", ids, listeners_not_ready, connections_not_ready);
+                                log::trace!("Listener: behaviour_poll Poll::Ready(NetworkBehaviourAction::NotifyHandler::Any ids: {:?}) pending_event: ?? isteners_not_ready: {} || connections_not_ready: {}, CONTINUE", ids, listeners_not_ready, connections_not_ready);
                                 continue;
                             }
                         }
                     }
                 },
                 Poll::Ready(NetworkBehaviourAction::ReportObservedAddr { address, score }) => {
+                    log::trace!("Listener: ReportObservedAddr+");
                     // Maps the given `observed_addr`, representing an address of the local
                     // node observed by a remote peer, onto the locally known listen addresses
                     // to yield one or more addresses of the local node that may be publicly
@@ -1127,23 +1140,26 @@ where
                         addrs
                     };
                     for addr in translated_addresses {
-                        log::trace!("Swarm<TBehavior>::poll_next_event: behaviour_poll Poll::Ready(NetworkBehaviourAction::ReportObservedAddr addr: {:?} score: {:?}) pending_event: ?? listeners_not_ready: {} && connections_not_ready: {}", addr.clone(), score.clone(), listeners_not_ready, connections_not_ready);
+                        log::trace!("Listener: behaviour_poll Poll::Ready(NetworkBehaviourAction::ReportObservedAddr addr: {:?} score: {:?}) pending_event: ?? listeners_not_ready: {} && connections_not_ready: {}", addr.clone(), score.clone(), listeners_not_ready, connections_not_ready);
                         this.add_external_address(addr, score);
                     }
+                    log::trace!("Listener: ReportObservedAddr-");
                 }
                 Poll::Ready(NetworkBehaviourAction::CloseConnection {
                     peer_id,
                     connection,
                 }) => match connection {
                     CloseConnection::One(connection_id) => {
+                        log::trace!("Listener: CloseConnection::One+");
                         if let Some(conn) = this.pool.get_established(connection_id) {
-                            log::trace!("Swarm<TBehavior>::poll_next_event: behaviour_poll Poll::Ready(NetworkBehaviourAction::CloseConnection::One peer_id: {:?} connection: {:?}), ADVANCE", peer_id, connection_id );
+                            log::trace!("Listener: behaviour_poll Poll::Ready(NetworkBehaviourAction::CloseConnection::One peer_id: {:?} connection: {:?}), ADVANCE", peer_id, connection_id );
                             conn.start_close();
                         }
                     }
                     CloseConnection::All => {
-                        log::trace!("Swarm<TBehavior>::poll_next_event: behaviour_poll Poll::Ready(NetworkBehaviourAction::CloseConnection::All peer_id: {:?}), ADVANCE", peer_id);
+                        log::trace!("Listener: behaviour_poll Poll::Ready(NetworkBehaviourAction::CloseConnection::All peer_id: {:?}), ADVANCE", peer_id);
                         this.pool.disconnect(peer_id);
+                        log::trace!("Listener: CloseConnection::All-");
                     }
                 },
             }
