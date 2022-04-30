@@ -652,11 +652,13 @@ where
                     }
                 }
             }
-            log::trace!("poll_next: match done");
 
+            log::trace!("poll_next: check if pausing");
             if let Some(mut pause) = me.pause.take() {
                 match Pin::new(&mut pause).poll(cx) {
-                    Poll::Ready(_) => {}
+                    Poll::Ready(_) => {
+                        log::trace!("poll_next: not pausing");
+                    }
                     Poll::Pending => {
                         log::trace!("poll_next: Pausing pause={:?}", pause);
                         me.pause = Some(pause);
@@ -669,6 +671,7 @@ where
             }
 
             // Take the pending connection from the backlog.
+            log::trace!("poll_next: invoke Provider::poll_accept");
             let incoming = match T::poll_accept(&mut me.listener, cx) {
                 Poll::Pending => {
                     let res = Poll::Pending;
@@ -681,8 +684,8 @@ where
                 }
                 Poll::Ready(Err(e)) => {
                     // These errors are non-fatal for the listener stream.
-                    log::error!("poll_next: error accepting incoming connection: {}", e);
                     me.pause = Some(Delay::new(me.sleep_on_error));
+                    log::error!("poll_next: pause={:?} error accepting incoming connection: {}", me.pause, e);
 
                     let res = Poll::Ready(Some(Ok(ListenerEvent::Error(e))));
                     log::debug!("poll_next:- tid={} res={:?}", std::thread::current().id().as_u64(), res);
