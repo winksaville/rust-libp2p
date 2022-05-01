@@ -174,5 +174,5 @@ required-features = ["gossipsub"]
 
 [patch.crates-io]
 netlink-proto = { git = "https://github.com/winksaville/netlink", tag = "Add-debug-v2-no-backtrace" }
-polling = { git = "https://github.com/winksaville/polling", tag = "Add-debug-v3" }
-async-io = { git = "https://github.com/winksaville/async-io", tag = "Add-debug-v5" }
+polling = { git = "https://github.com/winksaville/polling", tag = "Add-debug-v4" }
+async-io = { git = "https://github.com/winksaville/async-io", tag = "Add-debug-v6" }
