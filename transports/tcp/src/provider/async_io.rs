@@ -26,6 +26,8 @@ use std::io;
 use std::net;
 use std::task::{Context, Poll};
 
+use libp2p_core::tid;
+
 #[derive(Copy, Clone)]
 pub enum Tcp {}
 
@@ -73,7 +75,7 @@ impl Provider for Tcp {
         l: &mut Self::Listener,
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<Incoming<Self::Stream>>> {
-        log::debug!("Tcp::Provider::poll_accept:+ tid={} incomming", std::thread::current().id().as_u64());
+        log::debug!("Tcp::Provider::poll_accept:+ tid={} incomming", tid());
         let (stream, remote_addr) = loop {
             // This is the "higher level receiving" side of accepting a connection.
             // This doesn't happen when libp2p-lookup fails. I'm trying to get closer

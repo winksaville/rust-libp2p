@@ -35,6 +35,8 @@
 //!   define how to upgrade each individual substream to use a protocol.
 //!   See the `upgrade` module.
 
+#![feature(thread_id_value)]
+
 #[cfg(feature = "serde")]
 extern crate _serde as serde;
 
@@ -79,6 +81,12 @@ pub use transport::Transport;
 pub use upgrade::{InboundUpgrade, OutboundUpgrade, ProtocolName, UpgradeError, UpgradeInfo};
 
 use std::{future::Future, pin::Pin};
+
+#[allow(unused)]
+/// Thread ID (I like this to be "pub(create)" but didn't work)
+pub fn tid() -> std::num::NonZeroU64 {
+    std::thread::current().id().as_u64()
+}
 
 /// Implemented on objects that can run a `Future` in the background.
 ///

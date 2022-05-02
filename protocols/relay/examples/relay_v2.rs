@@ -38,11 +38,13 @@ use libp2p::{noise, Multiaddr};
 use std::error::Error;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
+use libp2p_core::tid;
+
 fn main() -> Result<(), Box<dyn Error>> {
     let env = env_logger::Env::default();
     env_logger::Builder::from_env(env).format_timestamp_micros().init();
 
-    log::info!("rv2:+ tid={} main", std::thread::current().id().as_u64());
+    log::info!("rv2:+ tid={} main", tid());
     //log::info!("rv2: main backtrace:\n{}", std::backtrace::Backtrace::force_capture());
 
     let opt = Opt::parse();
@@ -103,7 +105,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     log::info!("rv2: NewListenAddr: {:?}", address);
                 }
                 _ => {
-                    log::info!("rv2: tid={} Unknown event: {:?}", std::thread::current().id().as_u64(), event);
+                    log::info!("rv2: tid={} Unknown event: {:?}", tid(), event);
                     //log::debug!("rv2: Unknown event backtrace:\n{}", std::backtrace::Backtrace::force_capture());
                 }
             }
