@@ -675,11 +675,11 @@ where
             let incoming = match T::poll_accept(&mut me.listener, cx) {
                 Poll::Pending => {
                     let res = Poll::Pending;
-                    log::trace!("poll_next:- No incomming res={:?}", res);
+                    log::trace!("poll_next:- No incoming res={:?}", res);
                     return res;
                 }
                 Poll::Ready(Ok(incoming)) => {
-                    log::trace!("poll_next: Incomming");
+                    log::trace!("poll_next: Incoming");
                     incoming
                 }
                 Poll::Ready(Err(e)) => {
