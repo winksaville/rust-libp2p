@@ -37,12 +37,25 @@ use libp2p::{identity, NetworkBehaviour, PeerId};
 use libp2p::{noise, Multiaddr};
 use std::error::Error;
 use std::net::{Ipv4Addr, Ipv6Addr};
-
+use std::io::Write;
 use libp2p_core::tid;
+use std::time::SystemTime;
+use humantime::format_rfc3339_micros;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let env = env_logger::Env::default();
-    env_logger::Builder::from_env(env).format_timestamp_micros().init();
+    //env_logger::Builder::from_env(env).format_timestamp_micros().init();
+    env_logger::Builder::from_env(env).format(|buf, record| {
+        let time = SystemTime::now();
+        writeln!(buf, "[{} {} {} {} {:2}] {}",
+            format_rfc3339_micros(time),
+            record.level(),
+            if let Some(s) = record.module_path_static() { s } else { "" },
+            if let Some(v) = record.line() { v } else { 0 },
+            tid(),
+            record.args())
+    }).init();
+
 
     log::info!("rv2:+ tid={} main", tid());
     //log::info!("rv2: main backtrace:\n{}", std::backtrace::Backtrace::force_capture());
