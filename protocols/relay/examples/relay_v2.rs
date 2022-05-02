@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     //env_logger::Builder::from_env(env).format_timestamp_micros().init();
     env_logger::Builder::from_env(env).format(|buf, record| {
         let time = SystemTime::now();
-        writeln!(buf, "[{} {} {} {} {:2}] {}",
+        writeln!(buf, "[{} {:5} {} {} {:2}] {}",
             format_rfc3339_micros(time),
             record.level(),
             if let Some(s) = record.module_path_static() { s } else { "" },
@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }).init();
 
 
-    log::info!("rv2:+ tid={} main", tid());
+    log::info!("rv2:+ main");
     //log::info!("rv2: main backtrace:\n{}", std::backtrace::Backtrace::force_capture());
 
     let opt = Opt::parse();
@@ -118,7 +118,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     log::info!("rv2: NewListenAddr: {:?}", address);
                 }
                 _ => {
-                    log::info!("rv2: tid={} Unknown event: {:?}", tid(), event);
+                    log::info!("rv2: Unknown event: {:?}", event);
                     //log::debug!("rv2: Unknown event backtrace:\n{}", std::backtrace::Backtrace::force_capture());
                 }
             }
