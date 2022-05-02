@@ -73,7 +73,7 @@ impl Provider for Tcp {
         l: &mut Self::Listener,
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<Incoming<Self::Stream>>> {
-        log::debug!("Tcp::Provider::poll_accept:+ incomming");
+        log::debug!("Tcp::Provider::poll_accept:+ incoming");
         let (stream, remote_addr) = loop {
             // This is the "higher level receiving" side of accepting a connection.
             // This doesn't happen when libp2p-lookup fails. I'm trying to get closer
