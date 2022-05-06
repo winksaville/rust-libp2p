@@ -171,3 +171,6 @@ required-features = ["gossipsub"]
 [[example]]
 name = "ipfs-private"
 required-features = ["gossipsub"]
+
+[patch.crates-io]
+async-io = { git = "https://github.com/winksaville/async-io", tag = "fix-missing-waker.wake.v2" }
